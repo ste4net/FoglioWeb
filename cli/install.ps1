@@ -1,6 +1,13 @@
 # Installa la CLI di Foglio (Windows). Nessun amministratore, nessun segreto.
-# Uso: powershell -ExecutionPolicy Bypass -File install.ps1 [-Url <supabase>] [-AnonKey <chiave pubblica>] [-Agent <nome>]
-# Variabili: FOGLIO_CLI_BASE (default https://foglio.online/cli), FOGLIO_INSTALL_DIR
+#
+# Il modo più corto, da qualunque PowerShell (o incollato nella chat di Claude Code / Codex):
+#   irm https://foglio.online/cli/install.ps1 | iex
+# Con il nome dell'IA da collegare (e, se vuoi, indirizzo e chiave pubblica):
+#   $env:FOGLIO_AGENT = 'claude-code'; irm https://foglio.online/cli/install.ps1 | iex
+# Oppure scaricato: powershell -ExecutionPolicy Bypass -File install.ps1 [-Agent <nome>] [-Url <supabase>] [-AnonKey <chiave pubblica>]
+#
+# Variabili: FOGLIO_AGENT, FOGLIO_URL, FOGLIO_ANON_KEY, FOGLIO_CLI_BASE (default https://foglio.online/cli), FOGLIO_INSTALL_DIR,
+#            FOGLIO_YES=1 (installa Node senza chiedere, se manca).
 param(
   [string]$Url = $env:FOGLIO_URL,
   [string]$AnonKey = $env:FOGLIO_ANON_KEY,
@@ -8,30 +15,49 @@ param(
   [string]$Base = $(if ($env:FOGLIO_CLI_BASE) { $env:FOGLIO_CLI_BASE } else { 'https://foglio.online/cli' }),
   [string]$Dir = $(if ($env:FOGLIO_INSTALL_DIR) { $env:FOGLIO_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'foglio\bin' })
 )
-$ErrorActionPreference = 'Stop'
 
-# 1. Node >= 22.13
-$node = Get-Command node -ErrorAction SilentlyContinue
-if (-not $node) {
-  Write-Host "Serve Node.js 22.13 o piu' recente (non l'ho trovato)." -ForegroundColor Yellow
-  Write-Host "Installalo con:  winget install OpenJS.NodeJS.LTS   (oppure da https://nodejs.org), poi rilancia questo script."
-  exit 1
-}
-& node -e "const [a,b]=process.versions.node.split('.').map(Number);process.exit(a>22||(a===22&&b>=13)?0:1)"
-if ($LASTEXITCODE -ne 0) {
-  Write-Host "Node $(& node --version) e' troppo vecchio: serve 22.13 o piu' recente (winget upgrade OpenJS.NodeJS.LTS)." -ForegroundColor Yellow
-  exit 1
-}
+# Tutto in una funzione: con `| iex` un `exit` chiuderebbe la finestra dell'utente, un `return` no.
+function Install-Foglio {
+  param([string]$Url, [string]$AnonKey, [string]$Agent, [string]$Base, [string]$Dir)
+  $ErrorActionPreference = 'Stop'
 
-# 2. Scarica e controlla (impronta e firma con la chiave pubblica, usando lo stesso Node)
-$tmp = Join-Path ([IO.Path]::GetTempPath()) ("foglio-" + [Guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $tmp | Out-Null
-try {
-  Invoke-WebRequest -UseBasicParsing "$Base/latest.json" -OutFile (Join-Path $tmp 'latest.json')
-  $meta = Get-Content (Join-Path $tmp 'latest.json') -Raw | ConvertFrom-Json
-  $file = if ($meta.file) { $meta.file } else { 'foglio.mjs' }
-  Invoke-WebRequest -UseBasicParsing "$Base/$file" -OutFile (Join-Path $tmp 'foglio.mjs')
-  $verify = @'
+  function Test-NodeOk {
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $node) { return $false }
+    & node -e "const [a,b]=process.versions.node.split('.').map(Number);process.exit(a>22||(a===22&&b>=13)?0:1)"
+    return ($LASTEXITCODE -eq 0)
+  }
+
+  # 1. Node >= 22.13: se manca (o è vecchio) lo propone e lo installa con winget
+  if (-not (Test-NodeOk)) {
+    $have = Get-Command node -ErrorAction SilentlyContinue
+    if ($have) { Write-Host "Node $(& node --version) è troppo vecchio: serve 22.13 o più recente." -ForegroundColor Yellow }
+    else { Write-Host "Serve Node.js 22.13 o più recente (non l'ho trovato)." -ForegroundColor Yellow }
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if ($winget) {
+      $yes = ($env:FOGLIO_YES -eq '1')
+      if (-not $yes) { $a = Read-Host "Lo installo ora con winget (OpenJS.NodeJS.LTS)? [S/n]"; $yes = ($a -eq '' -or $a -match '^[sSyY]') }
+      if ($yes) {
+        & winget install -e --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
+        # winget aggiorna il PATH di sistema, non quello di questa finestra: lo rileggo
+        $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+      }
+    }
+    if (-not (Test-NodeOk)) {
+      Write-Host "Node non è pronto. Installalo da https://nodejs.org (versione LTS), poi rilancia questo comando." -ForegroundColor Yellow
+      return
+    }
+  }
+
+  # 2. Scarica e controlla (impronta e firma con la chiave pubblica, usando lo stesso Node)
+  $tmp = Join-Path ([IO.Path]::GetTempPath()) ("foglio-" + [Guid]::NewGuid().ToString('N'))
+  New-Item -ItemType Directory -Path $tmp | Out-Null
+  try {
+    Invoke-WebRequest -UseBasicParsing "$Base/latest.json" -OutFile (Join-Path $tmp 'latest.json')
+    $meta = Get-Content (Join-Path $tmp 'latest.json') -Raw | ConvertFrom-Json
+    $file = if ($meta.file) { $meta.file } else { 'foglio.mjs' }
+    Invoke-WebRequest -UseBasicParsing "$Base/$file" -OutFile (Join-Path $tmp 'foglio.mjs')
+    $verify = @'
 const c=require("crypto"),fs=require("fs");
 const m=JSON.parse(fs.readFileSync(process.argv[2],"utf8")), f=fs.readFileSync(process.argv[3]);
 const sha=c.createHash("sha256").update(f).digest("hex");
@@ -40,36 +66,39 @@ const key=c.createPublicKey({key:Buffer.concat([Buffer.from("302a300506032b65700
 if(!m.signature||!c.verify(null,Buffer.from(sha),key,Buffer.from(m.signature,"base64"))){console.error("firma non valida: installazione annullata");process.exit(1)}
 console.log("Versione "+m.version+": impronta e firma verificate.");
 '@
-  $vf = Join-Path $tmp 'verify.cjs'
-  Set-Content -Path $vf -Value $verify -Encoding ASCII
-  & node $vf (Join-Path $tmp 'latest.json') (Join-Path $tmp 'foglio.mjs')
-  if ($LASTEXITCODE -ne 0) { exit 1 }
+    $vf = Join-Path $tmp 'verify.cjs'
+    Set-Content -Path $vf -Value $verify -Encoding ASCII
+    & node $vf (Join-Path $tmp 'latest.json') (Join-Path $tmp 'foglio.mjs')
+    if ($LASTEXITCODE -ne 0) { return }
 
-  # 3. Installa: il file e il lanciatore (che scambia un aggiornamento rimasto accanto)
-  New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-  Copy-Item (Join-Path $tmp 'foglio.mjs') (Join-Path $Dir 'foglio.mjs.tmp') -Force
-  Move-Item (Join-Path $Dir 'foglio.mjs.tmp') (Join-Path $Dir 'foglio.mjs') -Force
-  $cmd = "@echo off`r`nif exist `"%~dp0foglio.mjs.new`" (move /y `"%~dp0foglio.mjs.new`" `"%~dp0foglio.mjs`" >nul 2>&1 & del `"%~dp0foglio.mjs.new.json`" >nul 2>&1)`r`nnode `"%~dp0foglio.mjs`" %*`r`n"
-  Set-Content -Path (Join-Path $Dir 'foglio.cmd') -Value $cmd -Encoding ASCII
-} finally {
-  Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+    # 3. Installa: il file e il lanciatore (che scambia un aggiornamento rimasto accanto)
+    New-Item -ItemType Directory -Force -Path $Dir | Out-Null
+    Copy-Item (Join-Path $tmp 'foglio.mjs') (Join-Path $Dir 'foglio.mjs.tmp') -Force
+    Move-Item (Join-Path $Dir 'foglio.mjs.tmp') (Join-Path $Dir 'foglio.mjs') -Force
+    $cmd = "@echo off`r`nif exist `"%~dp0foglio.mjs.new`" (move /y `"%~dp0foglio.mjs.new`" `"%~dp0foglio.mjs`" >nul 2>&1 & del `"%~dp0foglio.mjs.new.json`" >nul 2>&1)`r`nnode `"%~dp0foglio.mjs`" %*`r`n"
+    Set-Content -Path (Join-Path $Dir 'foglio.cmd') -Value $cmd -Encoding ASCII
+  } finally {
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+  }
+
+  # 4. PATH dell'utente (senza amministratore): vale subito in questa finestra e nelle prossime
+  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+  if (($userPath -split ';') -notcontains $Dir) {
+    [Environment]::SetEnvironmentVariable('Path', ($(if ($userPath) { "$userPath;" } else { '' }) + $Dir), 'User')
+    Write-Host "Aggiunto $Dir al PATH dell'utente."
+  }
+  if (($env:Path -split ';') -notcontains $Dir) { $env:Path = "$env:Path;$Dir" }
+  Write-Host "Installata: $(Join-Path $Dir 'foglio.cmd') ($(& node (Join-Path $Dir 'foglio.mjs') --version))"
+
+  # 5. Collega la macchina (il browser si apre da solo per l'approvazione)
+  if ($Agent) {
+    $loginArgs = @('login', '--agent', $Agent)
+    if ($Url) { $loginArgs += @('--url', $Url) }
+    if ($AnonKey) { $loginArgs += @('--anon-key', $AnonKey) }
+    & node (Join-Path $Dir 'foglio.mjs') @loginArgs
+  } else {
+    Write-Host "Per collegare questa macchina:  foglio login --agent <nome>   (es. claude-code, codex)"
+  }
 }
 
-# 4. PATH dell'utente (senza amministratore)
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-if (($userPath -split ';') -notcontains $Dir) {
-  [Environment]::SetEnvironmentVariable('Path', ($(if ($userPath) { "$userPath;" } else { '' }) + $Dir), 'User')
-  $env:Path = "$env:Path;$Dir"
-  Write-Host "Aggiunto $Dir al PATH dell'utente: apri un nuovo terminale."
-}
-Write-Host "Installata: $(Join-Path $Dir 'foglio.cmd') ($(& node (Join-Path $Dir 'foglio.mjs') --version))"
-
-# 5. Collega la macchina
-if ($Agent) {
-  $loginArgs = @('login', '--agent', $Agent)
-  if ($Url) { $loginArgs += @('--url', $Url) }
-  if ($AnonKey) { $loginArgs += @('--anon-key', $AnonKey) }
-  & node (Join-Path $Dir 'foglio.mjs') @loginArgs
-} else {
-  Write-Host "Per collegare questa macchina:  foglio login --agent <nome>   (es. claude-code, codex)"
-}
+Install-Foglio -Url $Url -AnonKey $AnonKey -Agent $Agent -Base $Base -Dir $Dir
