@@ -7,7 +7,7 @@
 # Oppure scaricato: powershell -ExecutionPolicy Bypass -File install.ps1 [-Agent <nome>] [-Url <supabase>] [-AnonKey <chiave pubblica>]
 #
 # Variabili: FOGLIO_AGENT, FOGLIO_URL, FOGLIO_ANON_KEY, FOGLIO_CLI_BASE (default https://foglio.online/cli), FOGLIO_INSTALL_DIR,
-#            FOGLIO_YES=1 (installa Node senza chiedere, se manca).
+#            FOGLIO_YES=1 (installa Node senza chiedere, se manca), FOGLIO_NO_PATH=1 (non tocca il PATH: per le prove).
 param(
   [string]$Url = $env:FOGLIO_URL,
   [string]$AnonKey = $env:FOGLIO_ANON_KEY,
@@ -83,7 +83,7 @@ console.log("Versione "+m.version+": impronta e firma verificate.");
 
   # 4. PATH dell'utente (senza amministratore): vale subito in questa finestra e nelle prossime
   $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-  if (($userPath -split ';') -notcontains $Dir) {
+  if ($env:FOGLIO_NO_PATH -ne '1' -and ($userPath -split ';') -notcontains $Dir) {
     [Environment]::SetEnvironmentVariable('Path', ($(if ($userPath) { "$userPath;" } else { '' }) + $Dir), 'User')
     Write-Host "Aggiunto $Dir al PATH dell'utente."
   }
