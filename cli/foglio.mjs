@@ -212,7 +212,7 @@ var init_version = __esm({
   "src/version.ts"() {
     "use strict";
     VERSION = (() => {
-      if (true) return "0.2.0";
+      if (true) return "0.2.1";
       try {
         const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         return pkg.version ?? "0.0.0";
