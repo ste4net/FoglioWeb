@@ -64,6 +64,12 @@ var init_agent = __esm({
 });
 
 // src/supabase/userConfig.ts
+var userConfig_exports = {};
+__export(userConfig_exports, {
+  UserStore: () => UserStore,
+  restrictFile: () => restrictFile,
+  userDir: () => userDir
+});
 import { execFile } from "node:child_process";
 import { chmod, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { homedir, userInfo } from "node:os";
@@ -147,12 +153,12 @@ var init_userConfig = __esm({
       /** Archivio chiave/valore con l'interfaccia che `supabase-js` si aspetta per la sessione (access e refresh token). */
       sessionStorage(agent) {
         const file = this.sessionPath(agent);
-        const read = async () => await readJson(file) ?? {};
+        const read2 = async () => await readJson(file) ?? {};
         return {
-          getItem: async (k) => (await read())[k] ?? null,
-          setItem: async (k, v) => writePrivate(file, JSON.stringify({ ...await read(), [k]: v }, null, 2) + "\n"),
+          getItem: async (k) => (await read2())[k] ?? null,
+          setItem: async (k, v) => writePrivate(file, JSON.stringify({ ...await read2(), [k]: v }, null, 2) + "\n"),
           removeItem: async (k) => {
-            const { [k]: _gone, ...rest } = await read();
+            const { [k]: _gone, ...rest } = await read2();
             if (Object.keys(rest).length === 0) await rm(file, { force: true });
             else await writePrivate(file, JSON.stringify(rest, null, 2) + "\n");
           }
@@ -426,11 +432,11 @@ function __metadata(metadataKey, metadataValue) {
 }
 function __awaiter(thisArg, _arguments, P2, generator) {
   function adopt(value) {
-    return value instanceof P2 ? value : new P2(function(resolve4) {
-      resolve4(value);
+    return value instanceof P2 ? value : new P2(function(resolve5) {
+      resolve5(value);
     });
   }
-  return new (P2 || (P2 = Promise))(function(resolve4, reject) {
+  return new (P2 || (P2 = Promise))(function(resolve5, reject) {
     function fulfilled(value) {
       try {
         step(generator.next(value));
@@ -446,7 +452,7 @@ function __awaiter(thisArg, _arguments, P2, generator) {
       }
     }
     function step(result) {
-      result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+      result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
     }
     step((generator = generator.apply(thisArg, _arguments || [])).next());
   });
@@ -637,14 +643,14 @@ function __asyncValues(o) {
   }, i);
   function verb(n2) {
     i[n2] = o[n2] && function(v) {
-      return new Promise(function(resolve4, reject) {
-        v = o[n2](v), settle(resolve4, reject, v.done, v.value);
+      return new Promise(function(resolve5, reject) {
+        v = o[n2](v), settle(resolve5, reject, v.done, v.value);
       });
     };
   }
-  function settle(resolve4, reject, d, v) {
+  function settle(resolve5, reject, d, v) {
     Promise.resolve(v).then(function(v2) {
-      resolve4({ value: v2, done: d });
+      resolve5({ value: v2, done: d });
     }, reject);
   }
 }
@@ -1276,18 +1282,18 @@ function _objectSpread2(e) {
   return e;
 }
 function sleep(ms, signal) {
-  return new Promise((resolve4) => {
+  return new Promise((resolve5) => {
     if (signal === null || signal === void 0 ? void 0 : signal.aborted) {
-      resolve4();
+      resolve5();
       return;
     }
     const id = setTimeout(() => {
       signal === null || signal === void 0 || signal.removeEventListener("abort", onAbort);
-      resolve4();
+      resolve5();
     }, ms);
     function onAbort() {
       clearTimeout(id);
-      resolve4();
+      resolve5();
     }
     signal === null || signal === void 0 || signal.addEventListener("abort", onAbort);
   });
@@ -8438,15 +8444,15 @@ var require_RealtimeChannel = __commonJS({
             }
           }
         } else {
-          return new Promise((resolve4) => {
+          return new Promise((resolve5) => {
             var _a2, _b2, _c;
             const push2 = this.channelAdapter.push(args.type, args, opts2.timeout || this.timeout);
             if (args.type === "broadcast" && !((_c = (_b2 = (_a2 = this.params) === null || _a2 === void 0 ? void 0 : _a2.config) === null || _b2 === void 0 ? void 0 : _b2.broadcast) === null || _c === void 0 ? void 0 : _c.ack)) {
-              resolve4("ok");
+              resolve5("ok");
             }
-            push2.receive("ok", () => resolve4("ok"));
-            push2.receive("error", () => resolve4("error"));
-            push2.receive("timeout", () => resolve4("timed out"));
+            push2.receive("ok", () => resolve5("ok"));
+            push2.receive("error", () => resolve5("error"));
+            push2.receive("timeout", () => resolve5("timed out"));
           });
         }
       }
@@ -8471,8 +8477,8 @@ var require_RealtimeChannel = __commonJS({
        * @category Realtime
        */
       async unsubscribe(timeout = this.timeout) {
-        return new Promise((resolve4) => {
-          this.channelAdapter.unsubscribe(timeout).receive("ok", () => resolve4("ok")).receive("timeout", () => resolve4("timed out")).receive("error", () => resolve4("error"));
+        return new Promise((resolve5) => {
+          this.channelAdapter.unsubscribe(timeout).receive("ok", () => resolve5("ok")).receive("timeout", () => resolve5("timed out")).receive("error", () => resolve5("error"));
         });
       }
       /**
@@ -8565,8 +8571,8 @@ var require_RealtimeChannel = __commonJS({
       }
       /** @internal */
       _notThisChannelEvent(event, ref) {
-        const { close, error, leave, join: join9 } = constants_1.CHANNEL_EVENTS;
-        const events = [close, error, leave, join9];
+        const { close, error, leave, join: join10 } = constants_1.CHANNEL_EVENTS;
+        const events = [close, error, leave, join10];
         return ref && events.includes(event) && ref !== this.joinPush.ref;
       }
       /** @internal */
@@ -8699,11 +8705,11 @@ var require_socketAdapter = __commonJS({
         this.socket.connect();
       }
       disconnect(callback, code, reason, timeout = 1e4) {
-        return new Promise((resolve4) => {
-          setTimeout(() => resolve4("timeout"), timeout);
+        return new Promise((resolve5) => {
+          setTimeout(() => resolve5("timeout"), timeout);
           this.socket.disconnect(() => {
             callback();
-            resolve4("ok");
+            resolve5("ok");
           }, code, reason);
         });
       }
@@ -10085,7 +10091,7 @@ function normalizeHeaders(headers) {
   return result;
 }
 async function _handleRequest(fetcher, method, url, options, parameters, body, namespace) {
-  return new Promise((resolve4, reject) => {
+  return new Promise((resolve5, reject) => {
     fetcher(url, _getRequestParams(method, options, parameters, body)).then((result) => {
       if (!result.ok) throw result;
       if (options === null || options === void 0 ? void 0 : options.noResolveJson) return result;
@@ -10095,7 +10101,7 @@ async function _handleRequest(fetcher, method, url, options, parameters, body, n
         if (!contentType || !contentType.includes("application/json")) return {};
       }
       return result.json();
-    }).then((data) => resolve4(data)).catch((error) => handleError(error, reject, options, namespace));
+    }).then((data) => resolve5(data)).catch((error) => handleError(error, reject, options, namespace));
   });
 }
 function createFetchApi(namespace = "storage") {
@@ -22584,9 +22590,9 @@ function realDeps() {
   };
 }
 function openBrowser(url) {
-  return new Promise((resolve4) => {
+  return new Promise((resolve5) => {
     const [cmd, args] = process.platform === "win32" ? ["rundll32", ["url.dll,FileProtocolHandler", url]] : process.platform === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
-    execFile2(cmd, args, () => resolve4());
+    execFile2(cmd, args, () => resolve5());
   });
 }
 function prompt(question, secret) {
@@ -22599,14 +22605,14 @@ function prompt(question, secret) {
     }
   });
   const rl = createInterface({ input: process.stdin, output, terminal: process.stdin.isTTY ?? false });
-  return new Promise((resolve4) => {
+  return new Promise((resolve5) => {
     process.stderr.write(question);
     muted = secret;
     rl.question("", (answer2) => {
       muted = false;
       if (secret) process.stderr.write("\n");
       rl.close();
-      resolve4(answer2.trim());
+      resolve5(answer2.trim());
     });
   });
 }
@@ -22682,12 +22688,11 @@ async function logout(deps, o = {}) {
   const present = await deps.user.listAgents();
   const target = o.agent ?? deps.env["FOGLIO_AGENT"] ?? (present.length === 1 ? present[0] : void 0);
   if (!target && present.length > 1) throw new Error(`pi\xF9 agenti collegati (${present.join(", ")}): indica quale con \`foglio logout --agent <nome>\``);
+  if (target && !present.includes(target)) throw new Error(`nessuna sessione per l'agente "${target}" su questa macchina${present.length ? ` (presenti: ${present.join(", ")})` : ": non c'\xE8 nulla da scollegare"}`);
   try {
     const { url, anonKey } = await deps.user.supabase(deps.env);
-    if (target && !present.includes(target)) throw new Error(`nessuna sessione per l'agente "${target}"${present.length ? ` (presenti: ${present.join(", ")})` : ""}`);
     await deps.makeClient(url, anonKey, deps.user, target).auth.signOut({ scope: "local" });
   } catch (e) {
-    if (target && !present.includes(target)) throw e;
   }
   await deps.user.clearSession(target);
   deps.out(target ? `Agente \xAB${target}\xBB scollegato: sessione rimossa dal profilo utente.` : "Sessione rimossa dal profilo utente.");
@@ -32120,9 +32125,9 @@ async function onStartup(d, o) {
   }
   let state = await readState(u);
   if (!disabled && checkDue(state, u.now())) {
-    const { mkdir: mkdir11, writeFile: writeFile9 } = await import("node:fs/promises");
+    const { mkdir: mkdir11, writeFile: writeFile10 } = await import("node:fs/promises");
     await mkdir11(u.dir, { recursive: true }).catch(() => void 0);
-    await writeFile9(join6(u.dir, "state.json"), JSON.stringify({ ...state, checkedAt: u.now().toISOString() }, null, 2) + "\n", "utf8").catch(() => void 0);
+    await writeFile10(join6(u.dir, "state.json"), JSON.stringify({ ...state, checkedAt: u.now().toISOString() }, null, 2) + "\n", "utf8").catch(() => void 0);
     try {
       d.spawnCheck();
     } catch {
@@ -34471,8 +34476,8 @@ ${linksText(r.links)}` };
         if (add_) c.addTags = add_;
         const rem = P.arr(p, "remove_tag");
         if (rem) c.removeTags = rem;
-        const unlink = P.arr(p, "unlink");
-        if (unlink) c.unlink = unlink;
+        const unlink2 = P.arr(p, "unlink");
+        if (unlink2) c.unlink = unlink2;
         const unset = P.arr(p, "unset");
         if (unset) c.unset = unset;
         const ctx = { ...this.wctx, ...this.strictOf(p), dryRun: P.bool(p, "dry_run") };
@@ -34937,15 +34942,307 @@ var init_setupCli = __esm({
   }
 });
 
+// src/setup/uninstall.ts
+import { spawn as spawn2, spawnSync as spawnSync2 } from "node:child_process";
+import { existsSync } from "node:fs";
+import { readFile as readFile8, readdir as readdir3, rm as rm3, rmdir, unlink, writeFile as writeFile7 } from "node:fs/promises";
+import { homedir as homedir3 } from "node:os";
+import { basename as basename3, dirname as dirname3, join as join8, resolve as resolve4 } from "node:path";
+async function read(file) {
+  try {
+    return await readFile8(file, "utf8");
+  } catch (e) {
+    if (e.code === "ENOENT") return void 0;
+    throw e;
+  }
+}
+function stripBlock(text, begin, end) {
+  const paren = begin.indexOf(" (");
+  const marker = paren > 0 ? begin.slice(0, paren) : begin;
+  const a2 = text.indexOf(marker);
+  if (a2 < 0) return null;
+  const z = text.indexOf(end, a2);
+  const stop = z < 0 ? text.length : z + end.length;
+  const before = text.slice(0, a2).replace(/\s+$/, "");
+  const after = text.slice(stop).replace(/^\s+/, "");
+  return before && after ? `${before}
+
+${after}` : `${before}${after}`;
+}
+async function stripFile(file, blocks) {
+  const cur = await read(file);
+  if (cur === void 0) return false;
+  let next = cur;
+  let touched = false;
+  for (const [b2, e] of blocks) {
+    const r = stripBlock(next, b2, e);
+    if (r !== null) {
+      next = r;
+      touched = true;
+    }
+  }
+  if (!touched) return false;
+  if (next.trim() === "") await unlink(file);
+  else await writeFile7(file, next.replace(/\s*$/, "\n"), "utf8");
+  return true;
+}
+async function has(file, ...needles) {
+  const cur = await read(file);
+  return cur !== void 0 && needles.some((n2) => cur.includes(n2));
+}
+function stripClaudeSettings(doc, rules) {
+  const hooks = doc["hooks"];
+  const pre = hooks?.["PreToolUse"];
+  if (Array.isArray(pre)) {
+    const kept = pre.filter((h) => !JSON.stringify(h).includes("hook pre-tool-use"));
+    if (kept.length) hooks["PreToolUse"] = kept;
+    else delete hooks["PreToolUse"];
+    if (hooks && Object.keys(hooks).length === 0) delete doc["hooks"];
+  }
+  const perms = doc["permissions"];
+  if (perms && Array.isArray(perms["deny"])) {
+    const kept = perms["deny"].filter((r) => !rules.includes(String(r)));
+    if (kept.length) perms["deny"] = kept;
+    else delete perms["deny"];
+    if (Object.keys(perms).length === 0) delete doc["permissions"];
+  }
+}
+async function planUninstall(o, deps) {
+  const env = o.env ?? process.env;
+  const home = o.home ?? homedir3();
+  const profile = userDir(env);
+  const steps = [];
+  const reminders = [];
+  const rules = denyRules(protectedPaths(env));
+  for (const agent of await deps.listAgents()) {
+    steps.push({ what: `scollega l'agente \xAB${agent}\xBB`, target: join8(profile, "sessions", `${agent}.json`), needed: true, run: () => deps.logout(agent) });
+    reminders.push(`nell'app, in \xABIA con accesso ai tuoi Fogli\xBB, revoca \xAB${agent}\xBB (il cloud non si tocca da qui)`);
+  }
+  const toml = join8(home, ".codex", "config.toml");
+  steps.push({
+    what: "collegamento MCP di Codex",
+    target: toml,
+    needed: await has(toml, "# foglio:begin"),
+    run: async () => void await stripFile(toml, [["# foglio:begin", "# foglio:end"]])
+  });
+  const codexMd = join8(home, ".codex", "AGENTS.md");
+  steps.push({
+    what: "regole e sezione \xABfoglio\xBB di Codex",
+    target: codexMd,
+    needed: await has(codexMd, "<!-- foglio:begin", "<!-- foglio-skill:begin"),
+    run: async () => void await stripFile(codexMd, [[BEGIN, END], [SKILL_BEGIN, SKILL_END]])
+  });
+  const skill = join8(home, ".claude", "skills", "foglio", "SKILL.md");
+  steps.push({
+    what: "skill \xABfoglio\xBB di Claude Code",
+    target: skill,
+    needed: await has(skill, SKILL_MARK),
+    run: async () => {
+      if (!await has(skill, SKILL_MARK)) return;
+      await unlink(skill);
+      await rmdir(dirname3(skill)).catch(() => void 0);
+    }
+  });
+  const settings = join8(home, ".claude", "settings.json");
+  steps.push({
+    what: "hook e regole di divieto di Claude Code",
+    target: settings,
+    needed: await has(settings, "hook pre-tool-use", "sqlite3"),
+    run: async () => void await editJson(settings, "", false, (d) => stripClaudeSettings(d, rules))
+  });
+  if (o.repo) {
+    const repo = resolve4(o.repo);
+    const mcp = join8(repo, ".mcp.json");
+    steps.push({
+      what: "collegamento MCP del repository",
+      target: mcp,
+      needed: await has(mcp, '"foglio"'),
+      run: async () => void await editJson(mcp, "", false, (d) => {
+        const s2 = d["mcpServers"];
+        if (s2) {
+          delete s2["foglio"];
+          if (Object.keys(s2).length === 0) delete d["mcpServers"];
+        }
+      })
+    });
+    for (const f2 of ["settings.json", "settings.local.json"]) {
+      const p = join8(repo, ".claude", f2);
+      steps.push({ what: `.claude/${f2} del repository`, target: p, needed: await has(p, "hook pre-tool-use", "sqlite3"), run: async () => void await editJson(p, "", false, (d) => stripClaudeSettings(d, rules)) });
+    }
+    const md = join8(repo, "AGENTS.md");
+    steps.push({ what: "blocco \xABFoglio\xBB di AGENTS.md del repository", target: md, needed: await has(md, "<!-- foglio:begin"), run: async () => void await stripFile(md, [[BEGIN, END]]) });
+  }
+  let unsent = 0;
+  const wsDir = join8(profile, "workspaces");
+  const archives = existsSync(wsDir) ? (await readdir3(wsDir)).filter((n2) => n2.endsWith(".sqlite")).map((n2) => join8(wsDir, n2)) : [];
+  for (const a2 of archives) unsent += await deps.unsent(a2).catch(() => 0);
+  if (o.keepData) {
+    steps.push({ what: "tiene il profilo (archivi locali e indirizzo del server)", target: profile, needed: false, run: async () => void 0 });
+  } else {
+    steps.push({
+      what: "profilo utente: sessioni, indirizzo del server, archivi locali, cache aggiornamenti",
+      target: profile,
+      needed: existsSync(profile),
+      ...unsent > 0 ? { warning: `${unsent} voci non ancora inviate al cloud andrebbero perse: prima \`foglio push\`, oppure usa --keep-data` } : {},
+      run: async () => rm3(profile, { recursive: true, force: true })
+    });
+  }
+  if (o.installPath && basename3(o.installPath) === "foglio.mjs") {
+    const dir = dirname3(o.installPath);
+    steps.push({ what: "voce nel PATH dell'utente", target: dir, needed: true, run: () => deps.removeFromPath(dir) });
+    steps.push({ what: "CLI installata", target: dir, needed: true, run: () => deps.removeInstallDir(dir) });
+  } else {
+    reminders.push("la CLI non \xE8 quella installata (sorgente o clone): cancella la cartella del clone e, se l'avevi collegata, `npm unlink -g foglio-cli`");
+  }
+  return { steps, unsent, reminders };
+}
+async function runPlan(plan2) {
+  const done = [];
+  const failed = [];
+  for (const s2 of plan2.steps) {
+    if (!s2.needed) continue;
+    try {
+      await s2.run();
+      done.push(s2.what);
+    } catch (e) {
+      failed.push({ what: s2.what, error: e.message });
+    }
+  }
+  return { done, failed };
+}
+function realUninstallDeps(env = process.env) {
+  const user = async () => {
+    const { UserStore: UserStore2 } = await Promise.resolve().then(() => (init_userConfig(), userConfig_exports));
+    return new UserStore2(userDir(env));
+  };
+  return {
+    listAgents: async () => (await user()).listAgents(),
+    logout: async (agent) => {
+      const { logout: logout2, realDeps: realDeps2 } = await Promise.resolve().then(() => (init_auth(), auth_exports));
+      await logout2({ ...realDeps2(), out: () => void 0 }, { agent });
+    },
+    unsent: async (file) => {
+      const { Archive: Archive2 } = await Promise.resolve().then(() => (init_archive(), archive_exports));
+      const a2 = await Archive2.open(file);
+      try {
+        const r = a2.db.get("SELECT count(*) AS n FROM entries WHERE deleted = 0 AND (remote_id IS NULL OR remote_id NOT IN (SELECT remote_id FROM sync_state))");
+        return r?.n ?? 0;
+      } finally {
+        a2.close();
+      }
+    },
+    removeFromPath: async (dir) => {
+      if (process.platform === "win32") {
+        const script = `$d='${dir.replace(/'/g, "''")}'; $p=[Environment]::GetEnvironmentVariable('Path','User'); if($p){ $n=($p -split ';' | Where-Object { $_ -and $_ -ne $d }) -join ';'; [Environment]::SetEnvironmentVariable('Path',$n,'User') }`;
+        spawnSync2("powershell", ["-NoProfile", "-Command", script], { stdio: "ignore" });
+        return;
+      }
+      for (const rc of [".profile", ".bashrc", ".zshrc"]) {
+        const f2 = join8(homedir3(), rc);
+        const cur = await read(f2);
+        if (cur === void 0 || !cur.includes("# foglio")) continue;
+        await writeFile7(f2, cur.split("\n").filter((l) => !l.trimEnd().endsWith("# foglio")).join("\n"), "utf8");
+      }
+    },
+    removeInstallDir: async (dir) => {
+      if (process.platform === "win32") {
+        const child = spawn2("cmd", ["/c", `ping -n 3 127.0.0.1 >nul & rmdir /s /q "${dir}"`], { detached: true, stdio: "ignore", windowsHide: true });
+        child.unref();
+        return;
+      }
+      await rm3(dir, { recursive: true, force: true });
+    }
+  };
+}
+var init_uninstall = __esm({
+  "src/setup/uninstall.ts"() {
+    "use strict";
+    init_userConfig();
+    init_setupAi();
+    init_skill();
+  }
+});
+
+// src/setup/uninstallCli.ts
+var uninstallCli_exports = {};
+__export(uninstallCli_exports, {
+  planText: () => planText,
+  runUninstall: () => runUninstall
+});
+import { createInterface as createInterface3 } from "node:readline/promises";
+function planText(plan2) {
+  const lines = ["Questo toglie:"];
+  for (const s2 of plan2.steps) lines.push(`  ${s2.needed ? "\u2022" : "\xB7"} ${s2.what}${s2.needed ? "" : " (niente da togliere)"}
+      ${s2.target}${s2.warning ? `
+      ATTENZIONE: ${s2.warning}` : ""}`);
+  if (plan2.reminders.length) lines.push("", "Restano da fare a mano:", ...plan2.reminders.map((r) => `  - ${r}`));
+  return lines.join("\n");
+}
+async function runUninstall(v, deps = realUninstallDeps(), ask2 = defaultAsk) {
+  const installPath = process.argv[1];
+  const o = { repo: v.repo, home: v.home, keepData: v["keep-data"], installPath };
+  const plan2 = await planUninstall(o, deps);
+  const todo = plan2.steps.filter((s2) => s2.needed);
+  if (v.json && v["dry-run"]) {
+    console.log(JSON.stringify({ ok: true, dryRun: true, unsent: plan2.unsent, steps: plan2.steps.map((s2) => ({ what: s2.what, target: s2.target, needed: s2.needed, ...s2.warning ? { warning: s2.warning } : {} })), reminders: plan2.reminders }));
+    return 0;
+  }
+  if (!v.json) console.log(planText(plan2));
+  if (todo.length === 0) {
+    if (v.json) console.log(JSON.stringify({ ok: true, done: [], failed: [], reminders: plan2.reminders }));
+    else console.log("\nNiente da togliere.");
+    return 0;
+  }
+  if (v["dry-run"]) {
+    console.log("\n[simulazione: non ho toccato nulla]");
+    return 0;
+  }
+  if (!v.yes) {
+    if (!process.stdin.isTTY) {
+      console.error("\nPer procedere senza domande aggiungi --yes (senza un terminale non chiedo conferma).");
+      return 1;
+    }
+    const q = plan2.unsent > 0 && !v["keep-data"] ? `
+${plan2.unsent} voci non inviate andranno perse. Scrivi \xABperdi\xBB per procedere: ` : "\nProcedo? [s/N] ";
+    const a2 = (await ask2(q)).trim().toLowerCase();
+    if (plan2.unsent > 0 && !v["keep-data"] ? a2 !== "perdi" : !/^(s|si|sì|y|yes)$/.test(a2)) {
+      console.log("Annullato: non ho toccato nulla.");
+      return 1;
+    }
+  }
+  const res = await runPlan(plan2);
+  if (v.json) console.log(JSON.stringify({ ok: res.failed.length === 0, done: res.done, failed: res.failed, reminders: plan2.reminders }));
+  else {
+    for (const d of res.done) console.log(`fatto: ${d}`);
+    for (const f2 of res.failed) console.error(`NON riuscito: ${f2.what}: ${f2.error}`);
+    if (plan2.reminders.length) console.log("\nResta da fare:\n" + plan2.reminders.map((r) => `  - ${r}`).join("\n"));
+  }
+  return res.failed.length === 0 ? 0 : 1;
+}
+async function defaultAsk(q) {
+  const rl = createInterface3({ input: process.stdin, output: process.stdout });
+  try {
+    return await rl.question(q);
+  } finally {
+    rl.close();
+  }
+}
+var init_uninstallCli = __esm({
+  "src/setup/uninstallCli.ts"() {
+    "use strict";
+    init_uninstall();
+  }
+});
+
 // src/commands/open.ts
-import { spawn as spawn2 } from "node:child_process";
+import { spawn as spawn3 } from "node:child_process";
 var openBrowser2;
 var init_open = __esm({
   "src/commands/open.ts"() {
     "use strict";
     openBrowser2 = (url) => {
       const [cmd, args] = process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : process.platform === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
-      const child = spawn2(cmd, args, { detached: true, stdio: "ignore", windowsHide: true });
+      const child = spawn3(cmd, args, { detached: true, stdio: "ignore", windowsHide: true });
       child.on("error", () => void 0);
       child.unref();
     };
@@ -34961,7 +35258,7 @@ __export(dispatch_exports, {
   readInput: () => readInput,
   runLocal: () => runLocal
 });
-import { readFile as readFile8 } from "node:fs/promises";
+import { readFile as readFile9 } from "node:fs/promises";
 function normalize(values) {
   return Object.fromEntries(Object.entries(values).map(([k, v]) => [k.replace(/-/g, "_"), v]));
 }
@@ -34971,7 +35268,7 @@ async function readBody(p, readStdin2) {
   if (typeof p["body"] === "string") return p["body"];
   if (typeof file !== "string") return void 0;
   try {
-    return (file === "-" ? await readStdin2() : await readFile8(file, "utf8")).replace(/\s+$/, "");
+    return (file === "-" ? await readStdin2() : await readFile9(file, "utf8")).replace(/\s+$/, "");
   } catch (e) {
     throw new CliError("invalid", `non riesco a leggere ${file}: ${e.message}`);
   }
@@ -34979,7 +35276,7 @@ async function readBody(p, readStdin2) {
 async function readJsonAny(file) {
   let text;
   try {
-    text = file === "-" ? await stdinText() : await readFile8(file, "utf8");
+    text = file === "-" ? await stdinText() : await readFile9(file, "utf8");
   } catch (e) {
     throw new CliError("invalid", `non riesco a leggere ${file}: ${e.message}`);
   }
@@ -34992,7 +35289,7 @@ async function readJsonAny(file) {
 async function readInput(file) {
   let text;
   try {
-    text = file === "-" ? await stdinText() : await readFile8(file, "utf8");
+    text = file === "-" ? await stdinText() : await readFile9(file, "utf8");
   } catch (e) {
     throw new CliError("invalid", `non riesco a leggere ${file}: ${e.message}`);
   }
@@ -35472,14 +35769,14 @@ __export(transfer_exports, {
   importDir: () => importDir,
   importText: () => importText
 });
-import { mkdir as mkdir8, readFile as readFile9, readdir as readdir3, writeFile as writeFile7 } from "node:fs/promises";
-import { basename as basename3, dirname as dirname3, join as join8, relative } from "node:path";
+import { mkdir as mkdir8, readFile as readFile10, readdir as readdir4, writeFile as writeFile8 } from "node:fs/promises";
+import { basename as basename4, dirname as dirname4, join as join9, relative } from "node:path";
 async function walk(dir, root = dir) {
   const out = [];
-  for (const e of await readdir3(dir, { withFileTypes: true })) {
+  for (const e of await readdir4(dir, { withFileTypes: true })) {
     if (e.isDirectory()) {
-      if (!SKIP_DIRS.has(e.name)) out.push(...await walk(join8(dir, e.name), root));
-    } else if (e.isFile() && (e.name.endsWith(".jsonl") || e.name.endsWith(".md"))) out.push(join8(dir, e.name));
+      if (!SKIP_DIRS.has(e.name)) out.push(...await walk(join9(dir, e.name), root));
+    } else if (e.isFile() && (e.name.endsWith(".jsonl") || e.name.endsWith(".md"))) out.push(join9(dir, e.name));
   }
   return out.sort();
 }
@@ -35503,7 +35800,7 @@ async function importDir(archive, dir, o = {}) {
   for (const file of files) {
     const rel = posix(relative(dir, file));
     try {
-      const text = await readFile9(file, "utf8");
+      const text = await readFile10(file, "utf8");
       if (file.endsWith(".jsonl")) {
         const wl = parseWorklist(text, rel);
         rep.jsonlFiles++;
@@ -35559,7 +35856,7 @@ async function importDir(archive, dir, o = {}) {
   return rep;
 }
 function docFromFile(text, file, rel, o) {
-  const stem = basename3(file).replace(/\.md$/i, "");
+  const stem = basename4(file).replace(/\.md$/i, "");
   const rec = parseNote(text, "");
   const title = typeof rec["title"] === "string" && rec["title"] !== "" ? rec["title"] : /^#\s+(.+)$/m.exec(rec["body_md"])?.[1]?.trim() ?? stem;
   rec["title"] = title;
@@ -35568,7 +35865,7 @@ function docFromFile(text, file, rel, o) {
   rec["project"] = o.project ?? str4(rec["project"]) ?? str4(rec["application"]) ?? "Importati";
   let area = str4(rec["area"]) ?? str4(rec["module"]);
   if (!area && o.areaFromDirs) {
-    const parts = posix(dirname3(rel)).split("/").filter((p) => p && p !== ".");
+    const parts = posix(dirname4(rel)).split("/").filter((p) => p && p !== ".");
     if (parts.length) area = parts.slice(0, 3).join("/");
   }
   if (area) rec["area"] = area;
@@ -35582,21 +35879,21 @@ async function exportTo(archive, dir, o = {}) {
   const recs = (await archive.list()).filter((r) => r.deleted !== true && (o.project === void 0 || String(r["project"] ?? "").toLowerCase() === o.project.toLowerCase()));
   const lists = /* @__PURE__ */ new Map();
   const files = [];
-  await mkdir8(join8(dir, "notes"), { recursive: true });
+  await mkdir8(join9(dir, "notes"), { recursive: true });
   for (const r of recs) {
     const out = toCapomastro(r);
     if (isListKind(r.kind)) {
       lists.set(out.kind, [...lists.get(out.kind) ?? [], out]);
     } else {
-      const f2 = join8("notes", `${safeName(out.id)}.md`);
-      await writeFile7(join8(dir, f2), serializeNote(out), "utf8");
+      const f2 = join9("notes", `${safeName(out.id)}.md`);
+      await writeFile8(join9(dir, f2), serializeNote(out), "utf8");
       files.push(posix(f2));
     }
   }
   const NAMES = { decision: "decisions.jsonl" };
   for (const [kind, items] of lists) {
     const f2 = NAMES[kind] ?? `${kind}.jsonl`;
-    await writeFile7(join8(dir, f2), serializeWorklist({ head: { format: WORKLIST_FORMAT, version: WORKLIST_VERSION, kind }, items }), "utf8");
+    await writeFile8(join9(dir, f2), serializeWorklist({ head: { format: WORKLIST_FORMAT, version: WORKLIST_VERSION, kind }, items }), "utf8");
     files.push(f2);
   }
   return { dir, files: files.sort(), entries: recs.length };
@@ -35630,11 +35927,11 @@ var init_transfer = __esm({
 
 // src/sync.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
-import { mkdir as mkdir9, readFile as readFile10, writeFile as writeFile8 } from "node:fs/promises";
-import { dirname as dirname4 } from "node:path";
+import { mkdir as mkdir9, readFile as readFile11, writeFile as writeFile9 } from "node:fs/promises";
+import { dirname as dirname5 } from "node:path";
 async function saveState(path, state) {
-  await mkdir9(dirname4(path), { recursive: true });
-  await writeFile8(path, JSON.stringify(state, null, 2) + "\n", "utf8");
+  await mkdir9(dirname5(path), { recursive: true });
+  await writeFile9(path, JSON.stringify(state, null, 2) + "\n", "utf8");
 }
 function inScope(r, f2) {
   if (f2.project !== void 0 && r["project"] !== f2.project) return false;
@@ -35697,7 +35994,7 @@ async function freeLabel(rec, remote, existing) {
   }
   return void 0;
 }
-async function apply(a2, local, remote, state, existing, opts2, resolve4, report2) {
+async function apply(a2, local, remote, state, existing, opts2, resolve5, report2) {
   const now2 = (opts2.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   switch (a2.type) {
     case "adopt":
@@ -35738,10 +36035,10 @@ async function apply(a2, local, remote, state, existing, opts2, resolve4, report
       return true;
     }
     case "conflict": {
-      if (!resolve4) return false;
+      if (!resolve5) return false;
       const deleting = !a2.local || a2.local.deleted === true;
       const base = a2.local ?? { ...a2.remote, deleted: true };
-      return apply({ type: deleting ? "push-delete" : "push-update", local: base, remote: a2.remote }, local, remote, state, existing, opts2, resolve4, report2);
+      return apply({ type: deleting ? "push-delete" : "push-update", local: base, remote: a2.remote }, local, remote, state, existing, opts2, resolve5, report2);
     }
     case "push-new":
     case "push-update":
@@ -35939,9 +36236,9 @@ async function watch(ctx, o) {
     });
   }
   const poll = setInterval(doPull, o.intervalMs);
-  await new Promise((resolve4) => {
-    if (o.signal.aborted) return resolve4();
-    o.signal.addEventListener("abort", () => resolve4(), { once: true });
+  await new Promise((resolve5) => {
+    if (o.signal.aborted) return resolve5();
+    o.signal.addEventListener("abort", () => resolve5(), { once: true });
   });
   clearTimeout(timer);
   clearInterval(poll);
@@ -36167,6 +36464,9 @@ Per le IA:
   mcp                            server MCP (stdio): lists, find, get, context, gather, deliver, undeliver, add, format, lint, update, ask, answer
   --version | version [--json]   versione della CLI \xB7 update [--check] [--force]: aggiorna il file foglio.mjs (impronta e firma verificate;
                                  aggiornamento automatico al pi\xF9 ogni 24 ore, FOGLIO_NO_AUTOUPDATE=1 lo disattiva)
+  uninstall [--repo <dir>] [--keep-data] [--yes] [--dry-run]   toglie Foglio dalla macchina: agenti scollegati, collegamenti
+                                 MCP, hook, skill e blocchi di AGENTS.md; poi profilo (archivi locali), CLI installata e PATH
+                                 (--keep-data tiene il profilo). Avvisa se ci sono voci non inviate. Gli agenti si revocano dall'app.
   setup-ai --repo <dir> | --user installa MCP, hook di Claude Code, regole di divieto, AGENTS.md e la skill \xABfoglio\xBB; --verify prova;
                                  --refresh rigenera solo la skill (e la sezione di Codex) dopo un aggiornamento della CLI
   reindex                        ricostruisce la ricerca dall'archivio
@@ -36272,7 +36572,9 @@ var OPTIONS = {
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
   check: { type: "boolean" },
-  timeout: { type: "string" }
+  timeout: { type: "string" },
+  yes: { type: "boolean" },
+  "keep-data": { type: "boolean" }
 };
 var LOCAL = /* @__PURE__ */ new Set(["changed", "wait", "link", "open", "add-many", "lint", "format", "search", "list", "lists", "get", "links", "context", "reindex", "add", "update", "ask", "answer", "ack", "gather", "deliver", "undeliver"]);
 var WRITES = /* @__PURE__ */ new Set(["add", "add-many", "ask", "answer", "ack", "deliver", "undeliver", "import", "init", "login", "push", "pull", "watch"]);
@@ -36305,7 +36607,7 @@ async function main(argv) {
   if (cmd === "version" || cmd === "update" && args.length === 0 || cmd === "self-update" || cmd === "__update-check") {
     return (await Promise.resolve().then(() => (init_cli(), cli_exports))).runUpdateCommand(cmd, values);
   }
-  if (cmd !== "hook" && process.argv[1] && /foglio\.mjs$/.test(process.argv[1])) {
+  if (cmd !== "hook" && cmd !== "uninstall" && process.argv[1] && /foglio\.mjs$/.test(process.argv[1])) {
     const { onStartup: onStartup2, realStartupDeps: realStartupDeps2 } = await Promise.resolve().then(() => (init_startup(), startup_exports));
     const write = WRITES.has(cmd) || cmd === "update" && args.length > 0;
     const r = await onStartup2(realStartupDeps2(), { write, reexec: !process.env["FOGLIO_REEXEC"] });
@@ -36319,6 +36621,7 @@ async function main(argv) {
     }
   }
   if (cmd === "hook") return (await Promise.resolve().then(() => (init_setupCli(), setupCli_exports))).runHook(args[0]);
+  if (cmd === "uninstall") return (await Promise.resolve().then(() => (init_uninstallCli(), uninstallCli_exports))).runUninstall(values);
   if (cmd === "setup-ai") return (await Promise.resolve().then(() => (init_setupCli(), setupCli_exports))).runSetup(values);
   if (cmd === "login" || cmd === "logout" || cmd === "whoami") {
     const a2 = await Promise.resolve().then(() => (init_auth(), auth_exports));
