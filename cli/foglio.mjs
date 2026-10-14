@@ -212,7 +212,7 @@ var init_version = __esm({
   "src/version.ts"() {
     "use strict";
     VERSION = (() => {
-      if (true) return "0.2.1";
+      if (true) return "0.3.0";
       try {
         const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         return pkg.version ?? "0.0.0";
@@ -22490,6 +22490,11 @@ var init_jsApi = __esm({
           if (e) fail(e, "scrittura collegamenti");
         }
       }
+      async listShares(type, resource) {
+        const { data, error } = await this.sb.rpc("list_shares", { p_type: type, p_resource: resource });
+        if (error) fail(error, "condivisioni");
+        return data;
+      }
       async latestUpdate(workspace, s2) {
         let q = this.sb.from("entries").select("updated_at").eq("workspace_id", workspace);
         if (s2.entryId) q = q.eq("id", s2.entryId);
@@ -30929,6 +30934,27 @@ var init_store2 = __esm({
         const me = await this.api.currentUserId();
         return rows.map((r) => toItem(r, since, { name: r.updated_by ? ctx.profileName.get(r.updated_by) : void 0, mine: r.updated_by === me }));
       }
+      async listShares(target) {
+        let id;
+        if (target.type === "entry" || target.type === "list") id = target.id;
+        else {
+          const ctx = await this.context(true);
+          const projectId = ctx.projectIdByName.get((target.type === "project" ? target.name : target.project).toLowerCase());
+          if (!projectId) throw new Error(`progetto "${target.type === "project" ? target.name : target.project}" inesistente nel workspace (progetti: ${[...ctx.projectNameById.values()].join(", ") || "nessuno"})`);
+          if (target.type === "project") id = projectId;
+          else {
+            const area = findArea(ctx.areas, projectId, splitArea(target.path));
+            if (!area) throw new Error(`area "${target.path}" inesistente nel progetto ${target.project}`);
+            id = area.id;
+          }
+        }
+        const rows = await this.api.listShares(target.type, id);
+        return {
+          elementId: id,
+          people: rows.filter((r) => !r.pending).map((r) => ({ name: r.name ?? "", email: r.email ?? "", role: r.role, since: r.created_at })),
+          invitations: rows.filter((r) => r.pending).map((r) => ({ email: r.email ?? "", role: r.role, expires_at: r.expires_at ?? "" }))
+        };
+      }
       async pullCatalog() {
         return this.api.listFieldCatalog();
       }
@@ -33097,6 +33123,70 @@ var init_changes2 = __esm({
   }
 });
 
+// src/commands/shares.ts
+function manageHint(link) {
+  return `Le condivisioni non si gestiscono dalla CLI n\xE9 dalle IA (D18): dall'app, apri \xABCondivisione\xBB dell'elemento${link ? ` (${link})` : ""}.`;
+}
+function targetOf(c, p) {
+  try {
+    if (p.id) {
+      const rec = c.archive.find(p.id);
+      if (typeof rec.remote_id !== "string" || rec.remote_id === "") throw new CliError("invalid", `${rec.id} non \xE8 ancora nel cloud: \`foglio push\` e riprova`);
+      return { type: "entry", id: rec.remote_id, label: `${rec.id}  ${String(rec["title"] ?? "")}`.trim() };
+    }
+    if (p.list) {
+      const l = c.archive.resolveList(p.list, { project: p.project ?? c.project });
+      return { type: "list", id: l.id, label: `lista \xAB${l.name}\xBB` };
+    }
+    const project2 = p.project ?? c.project;
+    if (p.area) {
+      if (!project2) throw new CliError("invalid", "per un'area serve anche il progetto: --project <nome>");
+      return { type: "area", project: project2, path: p.area, label: `area ${p.area} (${project2})` };
+    }
+    if (p.project) return { type: "project", name: p.project, label: `progetto ${p.project}` };
+  } catch (e) {
+    throw asCliError(e);
+  }
+  throw new CliError("invalid", "manca cosa guardare: `foglio shares <id>` oppure `--list <lista>`, `--area <area>`, `--project <progetto>`");
+}
+async function shares(c, p) {
+  if (!c.openRemote) throw new CliError("invalid", "nessun cloud configurato per questa cartella: `foglio init --workspace <uuid>`");
+  const target = targetOf(c, p);
+  let remote;
+  try {
+    remote = await c.openRemote();
+  } catch (e) {
+    throw new CliError("invalid", e.message);
+  }
+  if (!remote.listShares) throw new CliError("invalid", "il remoto configurato non conosce le condivisioni");
+  let r;
+  try {
+    r = await remote.listShares(target);
+  } catch (e) {
+    const m = e.message;
+    if (/non autorizzato/i.test(m)) throw new CliError("invalid", `non puoi vedere le persone di questo elemento (servono proprietario o editor dello spazio). ${manageHint()}`);
+    throw new CliError("invalid", m);
+  }
+  const prefix = { entry: "e", list: "l", area: "a", project: "p" }[target.type];
+  const link = `${appUrl()}/#/${prefix}/${r.elementId}`;
+  const lines = [`${target.label}`];
+  lines.push(r.people.length ? "Con accesso:" : "Nessuna persona con accesso diretto (oltre al proprietario e a chi ha l'accesso dello spazio).");
+  for (const x of r.people) lines.push(`  ${x.name}  <${x.email}>  ${x.role}  dal ${x.since.slice(0, 10)}`);
+  if (r.invitations.length) {
+    lines.push("Inviti aperti:");
+    for (const i of r.invitations) lines.push(`  ${i.email || "(senza email)"}  ${i.role}  scade ${i.expires_at.slice(0, 10)}`);
+  }
+  lines.push(manageHint(link));
+  return { result: { type: target.type, label: target.label, link, people: r.people, invitations: r.invitations }, text: lines.join("\n") };
+}
+var init_shares = __esm({
+  "src/commands/shares.ts"() {
+    "use strict";
+    init_link();
+    init_query();
+  }
+});
+
 // src/commands/context.ts
 function recText(kind, rec) {
   const main2 = rec[bodyField(kind)];
@@ -34303,6 +34393,7 @@ var init_ops = __esm({
     "use strict";
     init_link();
     init_changes2();
+    init_shares();
     init_model();
     init_context();
     init_deliver();
@@ -34414,6 +34505,13 @@ var init_ops = __esm({
           raw: P.bool(p, "raw"),
           maxChars: P.int(p, "max_chars")
         });
+        if (P.bool(p, "with_access")) {
+          try {
+            const { result } = await shares({ archive: this.a, openRemote: this.ctx.openRemote, project: this.ctx.project }, { id });
+            got.entry["access"] = [...result.people.map((x) => `${x.name} (${x.role})`), ...result.invitations.map((i) => `invito ${i.email || "?"} (${i.role})`)];
+          } catch {
+          }
+        }
         return { json: got, text: entryText(got) };
       }
       async links(p) {
@@ -34523,6 +34621,11 @@ ${linksText(r.links)}` };
         const row = (e) => `  ${e.id} [${e.kind}] ${String(e["status"] ?? e["execution_status"] ?? "")}${e["created_at"] ? ` creata ${day(e["created_at"])}` : ""}${e["closed_at"] ? ` chiusa ${day(e["closed_at"])}` : ""}`;
         const text = r.dryRun ? [`[simulazione, non scritto] ${r.created} voci valide: ${ids}`, ...(r.entries ?? []).map(row)].join("\n") : `Create ${r.created} voci: ${ids}`;
         return { json, text };
+      }
+      /** `foglio shares`: chi ha accesso e con quale ruolo, inviti aperti. Solo lettura (D37, D18). */
+      async shares(p) {
+        const { result, text } = await shares({ archive: this.a, openRemote: this.ctx.openRemote, project: this.ctx.project }, { id: P.str(p, "id"), list: P.str(p, "list"), area: P.str(p, "area"), project: P.str(p, "project") });
+        return { json: result, text };
       }
       /** `foglio changed`: quando è cambiato qualcosa l'ultima volta, ed eventualmente cosa (D34). */
       async changed(p) {
@@ -35327,6 +35430,13 @@ async function run2(cmd, args, p, ops, readStdin2) {
       return ops.context({ ...p, target: args.join(" ").trim() || void 0 });
     case "reindex":
       return ops.reindex();
+    case "shares":
+      return ops.shares({ ...p, id: args.join(" ").trim() || void 0 });
+    case "create-share":
+    case "share":
+    case "unshare":
+    case "invite":
+      throw new CliError("invalid", manageHint());
     case "changed":
       return ops.changed({ ...p, id: args.join(" ").trim() || void 0 });
     case "wait":
@@ -35404,6 +35514,7 @@ var LOCAL_COMMANDS;
 var init_dispatch = __esm({
   "src/commands/dispatch.ts"() {
     "use strict";
+    init_shares();
     init_open();
     init_query();
     LOCAL_COMMANDS = ["add-many", "lint", "format", "search", "list", "lists", "get", "links", "context", "reindex", "add", "update", "ask", "answer", "ack", "gather", "deliver", "undeliver"];
@@ -36436,6 +36547,10 @@ Leggere (archivio locale, nessuna rete):
   search <testo>                 cerca nel testo (parole intere o prefissi, senza distinguere accenti)
   get <id> [--toc | --section N] una voce; una nota lunga si legge per indice e sezioni
   links <id>                     link in uscita e voci che la citano
+  shares <id> | --list <l> | --area <a> --project <p> | --project <p>   chi ha accesso, con ruolo, e inviti aperti (SOLA LETTURA:
+                                 le condivisioni si gestiscono dall'app, \xABCondivisione\xBB dell'elemento)
+  changed [<id>|--project P|--list L] [--since <ISO>]   quando \xE8 cambiato qualcosa l'ultima volta, ed eventualmente cosa
+  wait <id>|--project P|--list L [--timeout 10m] [--interval 20s]   attende una variazione fatta da altri (exit 3 = nessuna)
   link <id> | link --list <lista>   il collegamento diretto (https://foglio.online/#/e/<id>) \xB7 open <id>: lo apre nel browser
   context <area|id>              pacchetto per un compito (specifiche, domande aperte, todo, test, decisioni), con tetto --max-chars
 Consegnare (fissare un'analisi finale; le consegnate non sono pi\xF9 attuali e restano fuori da search/list/context/gather/lists):
@@ -36574,9 +36689,10 @@ var OPTIONS = {
   check: { type: "boolean" },
   timeout: { type: "string" },
   yes: { type: "boolean" },
+  "with-access": { type: "boolean" },
   "keep-data": { type: "boolean" }
 };
-var LOCAL = /* @__PURE__ */ new Set(["changed", "wait", "link", "open", "add-many", "lint", "format", "search", "list", "lists", "get", "links", "context", "reindex", "add", "update", "ask", "answer", "ack", "gather", "deliver", "undeliver"]);
+var LOCAL = /* @__PURE__ */ new Set(["shares", "share", "unshare", "invite", "create-share", "changed", "wait", "link", "open", "add-many", "lint", "format", "search", "list", "lists", "get", "links", "context", "reindex", "add", "update", "ask", "answer", "ack", "gather", "deliver", "undeliver"]);
 var WRITES = /* @__PURE__ */ new Set(["add", "add-many", "ask", "answer", "ack", "deliver", "undeliver", "import", "init", "login", "push", "pull", "watch"]);
 var SYNC = /* @__PURE__ */ new Set(["status", "pull", "push", "watch"]);
 async function cloudOf(cfg) {
