@@ -88,7 +88,14 @@ console.log("Versione "+m.version+": impronta e firma verificate.");
     Write-Host "Aggiunto $Dir al PATH dell'utente."
   }
   if (($env:Path -split ';') -notcontains $Dir) { $env:Path = "$env:Path;$Dir" }
+  # Avvisa le finestre del sistema che l'ambiente è cambiato (i programmi nuovi vedono il PATH aggiornato); i terminali già aperti no.
+  try {
+    Add-Type -Namespace Foglio -Name Native -MemberDefinition '[DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);' -ErrorAction Stop
+    $r = [UIntPtr]::Zero
+    [void][Foglio.Native]::SendMessageTimeout([IntPtr]0xffff, 0x1A, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$r)
+  } catch { }
   Write-Host "Installata: $(Join-Path $Dir 'foglio.cmd') ($(& node (Join-Path $Dir 'foglio.mjs') --version))"
+  Write-Host "Se usi Claude Code, Codex o un altro terminale GIA' APERTO, `foglio` non è ancora nel suo PATH: riaprilo, oppure usa il percorso completo: $(Join-Path $Dir 'foglio.cmd')"
 
   # 5. Collega la macchina (il browser si apre da solo per l'approvazione)
   if ($Agent) {
