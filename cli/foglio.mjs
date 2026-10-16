@@ -342,7 +342,7 @@ var init_version = __esm({
   "src/version.ts"() {
     "use strict";
     VERSION = (() => {
-      if (true) return "0.5.3";
+      if (true) return "0.5.4";
       try {
         const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         return pkg.version ?? "0.0.0";
@@ -8701,8 +8701,8 @@ var require_RealtimeChannel = __commonJS({
       }
       /** @internal */
       _notThisChannelEvent(event, ref) {
-        const { close, error, leave, join: join10 } = constants_1.CHANNEL_EVENTS;
-        const events = [close, error, leave, join10];
+        const { close, error, leave, join: join11 } = constants_1.CHANNEL_EVENTS;
+        const events = [close, error, leave, join11];
         return ref && events.includes(event) && ref !== this.joinPush.ref;
       }
       /** @internal */
@@ -32503,8 +32503,8 @@ async function onStartup(d, o) {
   }
   let state = await readState(u);
   if (!disabled && checkDue(state, u.now())) {
-    const { mkdir: mkdir11, writeFile: writeFile10 } = await import("node:fs/promises");
-    await mkdir11(u.dir, { recursive: true }).catch(() => void 0);
+    const { mkdir: mkdir12, writeFile: writeFile10 } = await import("node:fs/promises");
+    await mkdir12(u.dir, { recursive: true }).catch(() => void 0);
     await writeFile10(join6(u.dir, "state.json"), JSON.stringify({ ...state, checkedAt: u.now().toISOString() }, null, 2) + "\n", "utf8").catch(() => void 0);
     try {
       d.spawnCheck();
@@ -37188,6 +37188,99 @@ var init_uninstallCli = __esm({
   }
 });
 
+// src/commands/discard.ts
+var discard_exports = {};
+__export(discard_exports, {
+  discard: () => discard,
+  discardText: () => discardText
+});
+import { appendFile, mkdir as mkdir10 } from "node:fs/promises";
+import { join as join9 } from "node:path";
+async function discard(archive, o) {
+  const ids = o.ids ?? [];
+  if (ids.length === 0 && !o.project) throw new CliError("invalid", "cosa eliminare: `foglio discard <id\u2026>` oppure `--project <progetto> [--list <lista>]`");
+  if (ids.length > 0 && (o.project || o.list)) throw new CliError("invalid", "o gli id o `--project`, non tutti e due");
+  const inScope2 = (project2) => !o.scope || typeof project2 === "string" && o.scope.some((s2) => s2.toLowerCase() === project2.toLowerCase());
+  if (o.project && !inScope2(o.project)) throw new CliError("invalid", `il progetto \xAB${o.project}\xBB \xE8 fuori dall'ambito di questa cartella (${o.scope.join(", ")}): non tocco nulla`);
+  let chosen = [];
+  let skipped = 0;
+  if (ids.length > 0) {
+    archive.scope = o.scope;
+    try {
+      chosen = ids.map((i) => {
+        try {
+          return archive.find(i);
+        } catch (e) {
+          throw asCliError(e);
+        }
+      });
+    } finally {
+      archive.scope = void 0;
+    }
+    const inCloud = chosen.filter((r) => archive.isSynced(r.remote_id));
+    if (inCloud.length) {
+      throw new CliError("conflict", `gi\xE0 nel cloud, non si eliminano in modo definitivo: ${inCloud.map((r) => r.id).join(", ")}. Per loro c'\xE8 la cancellazione normale (non definitiva).`);
+    }
+  } else {
+    let listId;
+    if (o.list) {
+      try {
+        listId = archive.resolveList(o.list, { project: o.project }).id;
+      } catch (e) {
+        throw asCliError(e);
+      }
+    }
+    for (const r of await archive.list()) {
+      if (String(r["project"] ?? "").toLowerCase() !== o.project.toLowerCase()) continue;
+      if (listId !== void 0 && r["list"] !== listId) continue;
+      if (archive.isSynced(r.remote_id)) {
+        skipped++;
+        continue;
+      }
+      chosen.push(r);
+    }
+  }
+  const seen = /* @__PURE__ */ new Set();
+  chosen = chosen.filter((r) => !seen.has(`${r.kind}:${r.id}`) && !!seen.add(`${r.kind}:${r.id}`));
+  const entries = chosen.map((r) => ({ kind: r.kind, id: r.id, title: String(r["title"] ?? ""), ...typeof r["project"] === "string" ? { project: r["project"] } : {} }));
+  const res = { entries, skipped, dryRun: o.dryRun === true, discarded: 0 };
+  if (o.dryRun || entries.length === 0) return res;
+  if (!o.yes) throw new CliError("invalid", `l'eliminazione \xE8 definitiva: ${entries.length} voci (${entries.slice(0, 6).map((e) => e.id).join(", ")}${entries.length > 6 ? ", \u2026" : ""}). Rilancia con --yes per confermare (--dry-run elenca id e titoli).`);
+  const at = (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
+  const dir = userDir(o.env ?? process.env);
+  await mkdir10(dir, { recursive: true });
+  await appendFile(join9(dir, "discarded.log"), entries.map((e) => JSON.stringify({ at, id: e.id, kind: e.kind, title: e.title, ...e.project ? { project: e.project } : {} })).join("\n") + "\n", "utf8");
+  const lists = new Set(chosen.map((r) => r["list"]).filter((l) => typeof l === "string"));
+  for (const r of chosen) await archive.remove(r);
+  const gone = new Set(chosen.map((r) => `${r.kind}:${r.id}`));
+  saveRejections(archive, loadRejections(archive).filter((x) => !gone.has(`${x.kind}:${x.id}`)));
+  for (const lid of lists) {
+    const left = archive.db.get("SELECT count(*) AS n FROM entries WHERE list_id = ? AND deleted = 0", lid).n;
+    if (left === 0) archive.db.run("DELETE FROM lists WHERE id = ? AND dirty = 1", lid);
+  }
+  res.discarded = entries.length;
+  return res;
+}
+function discardText(r) {
+  if (r.entries.length === 0) return `Nessuna voce da eliminare${r.skipped ? ` (${r.skipped} gi\xE0 nel cloud: non si toccano)` : ""}.`;
+  const list2 = r.entries.map((e) => `  ${e.id}  [${e.kind}]  ${e.title}${e.project ? `  (${e.project})` : ""}`).join("\n");
+  if (r.dryRun) return `[prova, non eliminato] ${r.entries.length} voci mai arrivate nel cloud, da eliminare in modo definitivo:
+${list2}${r.skipped ? `
+${r.skipped} gi\xE0 nel cloud: non si toccano.` : ""}`;
+  return `Eliminate ${r.discarded}:
+${list2}${r.skipped ? `
+${r.skipped} gi\xE0 nel cloud: non toccate.` : ""}
+Il log \xE8 in discarded.log nel profilo utente.`;
+}
+var init_discard = __esm({
+  "src/commands/discard.ts"() {
+    "use strict";
+    init_rejections();
+    init_userConfig();
+    init_query();
+  }
+});
+
 // src/commands/scope.ts
 var scope_exports = {};
 __export(scope_exports, {
@@ -37730,14 +37823,14 @@ __export(transfer_exports, {
   importDir: () => importDir,
   importText: () => importText
 });
-import { mkdir as mkdir10, readFile as readFile11, readdir as readdir4, writeFile as writeFile9 } from "node:fs/promises";
-import { basename as basename4, dirname as dirname6, join as join9, relative } from "node:path";
+import { mkdir as mkdir11, readFile as readFile11, readdir as readdir4, writeFile as writeFile9 } from "node:fs/promises";
+import { basename as basename4, dirname as dirname6, join as join10, relative } from "node:path";
 async function walk(dir, root = dir) {
   const out = [];
   for (const e of await readdir4(dir, { withFileTypes: true })) {
     if (e.isDirectory()) {
-      if (!SKIP_DIRS.has(e.name)) out.push(...await walk(join9(dir, e.name), root));
-    } else if (e.isFile() && (e.name.endsWith(".jsonl") || e.name.endsWith(".md"))) out.push(join9(dir, e.name));
+      if (!SKIP_DIRS.has(e.name)) out.push(...await walk(join10(dir, e.name), root));
+    } else if (e.isFile() && (e.name.endsWith(".jsonl") || e.name.endsWith(".md"))) out.push(join10(dir, e.name));
   }
   return out.sort();
 }
@@ -37840,21 +37933,21 @@ async function exportTo(archive, dir, o = {}) {
   const recs = (await archive.list()).filter((r) => r.deleted !== true && (o.project === void 0 || String(r["project"] ?? "").toLowerCase() === o.project.toLowerCase()));
   const lists = /* @__PURE__ */ new Map();
   const files = [];
-  await mkdir10(join9(dir, "notes"), { recursive: true });
+  await mkdir11(join10(dir, "notes"), { recursive: true });
   for (const r of recs) {
     const out = toCapomastro(r);
     if (isListKind(r.kind)) {
       lists.set(out.kind, [...lists.get(out.kind) ?? [], out]);
     } else {
-      const f2 = join9("notes", `${safeName(out.id)}.md`);
-      await writeFile9(join9(dir, f2), serializeNote(out), "utf8");
+      const f2 = join10("notes", `${safeName(out.id)}.md`);
+      await writeFile9(join10(dir, f2), serializeNote(out), "utf8");
       files.push(posix(f2));
     }
   }
   const NAMES = { decision: "decisions.jsonl" };
   for (const [kind, items] of lists) {
     const f2 = NAMES[kind] ?? `${kind}.jsonl`;
-    await writeFile9(join9(dir, f2), serializeWorklist({ head: { format: WORKLIST_FORMAT, version: WORKLIST_VERSION, kind }, items }), "utf8");
+    await writeFile9(join10(dir, f2), serializeWorklist({ head: { format: WORKLIST_FORMAT, version: WORKLIST_VERSION, kind }, items }), "utf8");
     files.push(f2);
   }
   return { dir, files: files.sort(), entries: recs.length };
@@ -37934,6 +38027,8 @@ Per le IA:
   mcp                            server MCP (stdio): lists, find, get, context, gather, deliver, undeliver, add, format, lint, update, ask, answer
   --version | version [--json]   versione della CLI \xB7 update [--check] [--force]: aggiorna il file foglio.mjs (impronta e firma verificate;
                                  aggiornamento automatico al pi\xF9 ogni 24 ore, FOGLIO_NO_AUTOUPDATE=1 lo disattiva)
+  discard <id\u2026> | --project P [--list L] [--yes] [--dry-run]   elimina DEFINITIVAMENTE dall'archivio locale voci MAI arrivate nel cloud (solo CLI, mai da MCP);
+                                 le voci gi\xE0 nel cloud si rifiutano; --dry-run elenca id e titoli, --yes conferma; log in <profilo>/discarded.log
   scope [--set "P1,P2" | --clear]  l'ambito della cartella: i progetti che le chat qui vedono e scrivono (vale per le sottocartelle); senza ambito si vede tutto
   doctor                         controlla accesso, spazio, rete, permessi e coda, con una prova di scrittura e rilettura: dice DOVE si salva
   use [--workspace <uuid>|<nome>] [--list-workspaces] [--clear]   lo spazio predefinito dell'utente (vale in ogni cartella senza .foglio/config.json)
@@ -38147,6 +38242,17 @@ async function main(argv) {
   }
   const flags = { root: values.root, remote: values.remote, workspace: values.workspace, project: values.project, area: values.area, by: values.by };
   const cfg = await resolveConfig(flags);
+  if (cmd === "discard") {
+    const { discard: discard2, discardText: discardText2 } = await Promise.resolve().then(() => (init_discard(), discard_exports));
+    const archive = await openArchive(cfg);
+    try {
+      const r = await discard2(archive, { ids: args.flatMap((x) => x.split(",")).map((x) => x.trim()).filter(Boolean), project: values.project, list: values.list, yes: values.yes, dryRun: values["dry-run"], scope: cfg.scope });
+      console.log(values.json ? JSON.stringify({ ok: true, ...r }) : discardText2(r));
+      return 0;
+    } finally {
+      archive.close();
+    }
+  }
   if (cmd === "scope") return (await Promise.resolve().then(() => (init_scope(), scope_exports))).runScope(cfg, { set: Array.isArray(values.set) ? values.set.join(",") : values.set, clear: values.clear, json: values.json });
   if (cmd === "doctor") {
     const { doctor: doctor2, doctorText: doctorText2 } = await Promise.resolve().then(() => (init_doctor(), doctor_exports));
