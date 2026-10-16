@@ -7,7 +7,7 @@
  *   Fanno eccezione i caratteri di Google Fonts, che sono pubblici.
  * Tutti i percorsi sono relativi alla cartella del service worker, quindi vale anche se l'app sta in una sottocartella.
  */
-const VERSION = 'foglio-v1';
+const VERSION = 'foglio-v2';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const FONTS = `${VERSION}-fonts`;
