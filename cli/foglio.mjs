@@ -342,7 +342,7 @@ var init_version = __esm({
   "src/version.ts"() {
     "use strict";
     VERSION = (() => {
-      if (true) return "0.5.7";
+      if (true) return "0.5.8";
       try {
         const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         return pkg.version ?? "0.0.0";
@@ -33203,23 +33203,29 @@ function blockWrites(message) {
 async function serveStdio(ops, input, output, version3 = VERSION) {
   const rl = createInterface2({ input, crlfDelay: Infinity });
   const pending = /* @__PURE__ */ new Set();
-  for await (const line of rl) {
-    if (!line.trim()) continue;
-    const work = (async () => {
-      let msg;
-      try {
-        msg = JSON.parse(line);
-      } catch {
-        output.write(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: ERR.parse, message: "JSON non valido" } }) + "\n");
-        return;
-      }
-      const res = await handleMessage(ops, msg, version3);
-      if (res) output.write(JSON.stringify(res) + "\n");
-    })();
-    pending.add(work);
-    void work.finally(() => pending.delete(work));
+  const beat = setInterval(() => void ops.reportCounts().catch(() => void 0), 5 * 6e4);
+  beat.unref?.();
+  try {
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      const work = (async () => {
+        let msg;
+        try {
+          msg = JSON.parse(line);
+        } catch {
+          output.write(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: ERR.parse, message: "JSON non valido" } }) + "\n");
+          return;
+        }
+        const res = await handleMessage(ops, msg, version3);
+        if (res) output.write(JSON.stringify(res) + "\n");
+      })();
+      pending.add(work);
+      void work.finally(() => pending.delete(work));
+    }
+    await Promise.all(pending);
+  } finally {
+    clearInterval(beat);
   }
-  await Promise.all(pending);
 }
 var SERVER_NAME, SUPPORTED_PROTOCOLS, s, b, n, a, opts, obj, TOOLS, INSTRUCTIONS, ERR, writeBlock;
 var init_server = __esm({
@@ -35391,6 +35397,33 @@ var init_bulk = __esm({
   }
 });
 
+// src/counts.ts
+async function reportCountsCapped(archive, remote, capMs = REPORT_CAP_MS) {
+  if (!remote?.reportCounts) return;
+  let timer;
+  try {
+    const q = queueOf(archive);
+    await Promise.race([
+      remote.reportCounts(q.pending.length, q.localOnly.length).catch(() => void 0),
+      new Promise((resolve5) => {
+        timer = setTimeout(resolve5, capMs);
+        timer.unref?.();
+      })
+    ]);
+  } catch {
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+var REPORT_CAP_MS;
+var init_counts = __esm({
+  "src/counts.ts"() {
+    "use strict";
+    init_queue();
+    REPORT_CAP_MS = 1500;
+  }
+});
+
 // src/commands/render.ts
 function plainLine(o) {
   const rest = Object.entries(o).filter(([k]) => k !== "id").map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
@@ -35718,6 +35751,7 @@ var init_ops = __esm({
     init_query();
     init_bulk();
     init_catalog();
+    init_counts();
     init_render();
     init_write();
     P = {
@@ -35802,7 +35836,10 @@ var init_ops = __esm({
         if (!this.ctx.openRemote) return void 0;
         const q = queueOf(this.a);
         const out = { confirmed: 0, skipped: [] };
-        if (q.pending.length === 0) return out;
+        if (q.pending.length === 0) {
+          await this.reportCounts();
+          return out;
+        }
         try {
           const remote = await this.ctx.openRemote();
           const lists = await pushListsIsolated(this.a, remote);
@@ -35821,15 +35858,14 @@ var init_ops = __esm({
         } catch (e) {
           out.error = e.message;
         }
-        void this.reportCounts();
+        await this.reportCounts();
         return out;
       }
       /** `touch_agent` con i conteggi di coda e fallite, se il database li accetta; altrimenti solo la versione. Mai un errore. */
       async reportCounts() {
+        if (!this.ctx.openRemote) return;
         try {
-          const q = queueOf(this.a);
-          const remote = await this.ctx.openRemote();
-          await remote.reportCounts?.(q.pending.length, q.localOnly.length);
+          await reportCountsCapped(this.a, await this.ctx.openRemote());
         } catch {
         }
       }
@@ -37075,6 +37111,7 @@ async function runSync(cmd, cfg, values) {
     if (cmd === "push" && values["create-missing-projects"]) await createMissingProjects(archive, remote, values.yes === true);
     const rep = cmd === "pull" ? await runPull(ctx, { attachments }) : await runPush(ctx, { attachments });
     report(rep);
+    if (cmd === "push" || cmd === "pull") await reportCountsCapped(archive, remote);
     if (cmd === "push") {
       const view = { scope: cfg.scope, cwd: cfg.root, session: process.env["CLAUDE_CODE_SESSION_ID"] ?? process.env["CODEX_SESSION_ID"] };
       const { mine: q, others } = viewQueue(queueOf(archive, cfg.project), view);
@@ -37104,6 +37141,7 @@ var init_syncCli = __esm({
     init_scan();
     init_sync();
     init_watch();
+    init_counts();
     init_pushing();
     init_queue();
     LABEL = {

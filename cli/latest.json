@@ -1,9 +1,9 @@
 {
-  "version": "0.5.7",
+  "version": "0.5.8",
   "min_supported": "0.1.0",
   "file": "foglio.mjs",
-  "sha256": "f481da99d4ed7ee9ebc37a119f66b713ada0e7ae67517e7a75d9c2a7f79fdf49",
-  "signature": "+EpzWEKIK5C5WaSy6oUUU7X46eDzSbD/h9fobm572vPg8Vzef9g/YvAtmjH9xIN4lNJEv1Vj1sT1Bq0ZVhuCDg==",
-  "released_at": "2026-10-19T05:54:37.608Z",
+  "sha256": "fae0d88da4c6a3ce34ee0fd1d026591066069e39bc04ccf99a16d78edc8ae833",
+  "signature": "i8WlGYcA8j23TquhgrbJ6LxtTGx/9ZQ7HXm8+p/9+F0Ih2/LqEX8RxOpkEHoOtZ4svCH6IiHxQMSODScC+1dAQ==",
+  "released_at": "2026-10-19T06:13:52.367Z",
   "notes": ""
 }
