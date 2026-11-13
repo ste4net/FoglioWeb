@@ -342,7 +342,7 @@ var init_version = __esm({
   "src/version.ts"() {
     "use strict";
     VERSION = (() => {
-      if (true) return "0.5.8";
+      if (true) return "0.5.9";
       try {
         const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         return pkg.version ?? "0.0.0";
@@ -36568,10 +36568,11 @@ async function writeOwned(file, content, what, dryRun) {
   }
   return { file, what, changed: changed2 };
 }
-async function skillActions(home, claude, codex, dryRun) {
+async function skillActions(home, claude, codex, opencode, dryRun) {
   const out = [];
   if (claude) out.push(await writeOwned(join7(home, ".claude", "skills", "foglio", "SKILL.md"), SKILL_MD, "skill \xABfoglio\xBB di Claude Code (usa sempre Foglio per lo stato del lavoro e d\xE0 il collegamento)", dryRun));
   if (codex) out.push(await editBlock(join7(home, ".codex", "AGENTS.md"), "sezione \xABfoglio\xBB per Codex (stesse regole della skill)", dryRun, CODEX_BLOCK, SKILL_BEGIN, SKILL_END));
+  if (opencode) out.push(await writeOwned(join7(home, ".config", "opencode", "skills", "foglio", "SKILL.md"), SKILL_MD, "skill \xABfoglio\xBB di OpenCode (stessa sorgente di Claude Code)", dryRun));
   return out;
 }
 function addHook(doc, hookCommand) {
@@ -36602,11 +36603,12 @@ async function setupAi(o) {
   const hookCommand = cmdLine(cmd, "hook", "pre-tool-use");
   const mcp = { command: cmd.command, args: [...cmd.args, "mcp"] };
   const paths = protectedPaths(env, o.protect);
-  const only = o.claude === true !== (o.codex === true);
-  const claude = only ? o.claude === true : o.claude !== false;
-  const codex = only ? o.codex === true : o.codex !== false;
+  const selected = [o.claude, o.codex, o.opencode].some((v) => v === true);
+  const claude = selected ? o.claude === true : o.claude !== false;
+  const codex = selected ? o.codex === true : o.codex !== false;
+  const opencode = selected ? o.opencode === true : o.opencode !== false;
   const out = [];
-  if (o.refresh) return skillActions(o.home ?? homedir2(), claude, codex, dry);
+  if (o.refresh) return skillActions(o.home ?? homedir2(), claude, codex, opencode, dry);
   if (!o.repo && !o.user) throw new Error("indica dove: --repo <cartella> oppure --user");
   if (o.repo) {
     const repo = resolve3(o.repo);
@@ -36617,7 +36619,13 @@ async function setupAi(o) {
       out.push(await editJson(join7(repo, ".claude", "settings.json"), "hook PreToolUse: blocca la lettura diretta dei dati di Foglio", dry, (d) => addHook(d, hookCommand)));
       out.push(await editJson(join7(repo, ".claude", "settings.local.json"), "regole di divieto sul profilo di Foglio (file locale, non versionato)", dry, (d) => addDeny(d, denyRules(paths))));
     }
-    out.push(await editBlock(join7(repo, "AGENTS.md"), "regole per le IA (Claude Code, Codex)", dry, AGENTS_BLOCK));
+    if (opencode) {
+      out.push(await editJson(join7(repo, ".opencode", "opencode.json"), "collegamento al server MCP (OpenCode)", dry, (d) => {
+        d["$schema"] ??= "https://opencode.ai/config.json";
+        obj2(obj2(d, "mcp"), "servers")["foglio"] = { type: "local", command: [mcp.command, ...mcp.args], environment: { FOGLIO_AGENT: "opencode" } };
+      }));
+    }
+    out.push(await editBlock(join7(repo, "AGENTS.md"), "regole per le IA (Claude Code, Codex, OpenCode)", dry, AGENTS_BLOCK));
   }
   if (o.user) {
     const home = o.home ?? homedir2();
@@ -36626,7 +36634,7 @@ async function setupAi(o) {
         addHook(d, hookCommand);
         addDeny(d, denyRules(paths));
       }));
-      out.push(...await skillActions(home, true, false, dry));
+      out.push(...await skillActions(home, true, false, false, dry));
       out.push({ file: "(a mano)", what: `collegamento MCP per l'utente: claude mcp add --scope user -e FOGLIO_AGENT=claude-code foglio -- ${cmdLine(mcp)}`, changed: false });
     }
     if (codex) {
@@ -36642,7 +36650,15 @@ FOGLIO_AGENT = "codex"
 `;
       out.push(await editBlock(toml, "collegamento al server MCP (Codex)", dry, block, "# foglio:begin", "# foglio:end"));
       out.push(await editBlock(join7(home, ".codex", "AGENTS.md"), "regole per Codex", dry, AGENTS_BLOCK));
-      out.push(...await skillActions(home, false, true, dry));
+      out.push(...await skillActions(home, false, true, false, dry));
+    }
+    if (opencode) {
+      out.push(await editJson(join7(home, ".config", "opencode", "opencode.json"), "collegamento al server MCP (OpenCode)", dry, (d) => {
+        d["$schema"] ??= "https://opencode.ai/config.json";
+        obj2(obj2(d, "mcp"), "servers")["foglio"] = { type: "local", command: [mcp.command, ...mcp.args], environment: { FOGLIO_AGENT: "opencode" } };
+      }));
+      out.push(await editBlock(join7(home, ".config", "opencode", "AGENTS.md"), "regole per OpenCode", dry, AGENTS_BLOCK));
+      out.push(...await skillActions(home, false, false, true, dry));
     }
   }
   return out;
@@ -36763,6 +36779,7 @@ Messaggio che l'IA riceve se tenta di leggere i dati:
     home: v.home,
     claude: v.claude,
     codex: v.codex,
+    opencode: v.opencode,
     refresh: v.refresh,
     dryRun: v["dry-run"],
     protect: v.protect,
@@ -37322,6 +37339,39 @@ async function planUninstall(o, deps) {
     needed: await has(codexMd, "<!-- foglio:begin", "<!-- foglio-skill:begin"),
     run: async () => void await stripFile(codexMd, [[BEGIN, END], [SKILL_BEGIN, SKILL_END]])
   });
+  const openCodeConfig = join8(home, ".config", "opencode", "opencode.json");
+  steps.push({
+    what: "collegamento MCP di OpenCode",
+    target: openCodeConfig,
+    needed: await has(openCodeConfig, '"foglio"'),
+    run: async () => void await editJson(openCodeConfig, "", false, (d) => {
+      const mcp = d["mcp"];
+      const servers = mcp?.["servers"];
+      if (servers) {
+        delete servers["foglio"];
+        if (Object.keys(servers).length === 0) delete mcp["servers"];
+      }
+      if (mcp && Object.keys(mcp).length === 0) delete d["mcp"];
+    })
+  });
+  const openCodeMd = join8(home, ".config", "opencode", "AGENTS.md");
+  steps.push({
+    what: "regole di OpenCode",
+    target: openCodeMd,
+    needed: await has(openCodeMd, "<!-- foglio:begin"),
+    run: async () => void await stripFile(openCodeMd, [[BEGIN, END]])
+  });
+  const openCodeSkill = join8(home, ".config", "opencode", "skills", "foglio", "SKILL.md");
+  steps.push({
+    what: "skill \xABfoglio\xBB di OpenCode",
+    target: openCodeSkill,
+    needed: await has(openCodeSkill, SKILL_MARK),
+    run: async () => {
+      if (!await has(openCodeSkill, SKILL_MARK)) return;
+      await unlink(openCodeSkill);
+      await rmdir(dirname5(openCodeSkill)).catch(() => void 0);
+    }
+  });
   const skill = join8(home, ".claude", "skills", "foglio", "SKILL.md");
   steps.push({
     what: "skill \xABfoglio\xBB di Claude Code",
@@ -37361,6 +37411,17 @@ async function planUninstall(o, deps) {
     }
     const md = join8(repo, "AGENTS.md");
     steps.push({ what: "blocco \xABFoglio\xBB di AGENTS.md del repository", target: md, needed: await has(md, "<!-- foglio:begin"), run: async () => void await stripFile(md, [[BEGIN, END]]) });
+    const openCodeRepo = join8(repo, ".opencode", "opencode.json");
+    steps.push({
+      what: "collegamento MCP OpenCode del repository",
+      target: openCodeRepo,
+      needed: await has(openCodeRepo, '"foglio"'),
+      run: async () => void await editJson(openCodeRepo, "", false, (d) => {
+        const mcp2 = d["mcp"];
+        const servers = mcp2?.["servers"];
+        if (servers) delete servers["foglio"];
+      })
+    });
   }
   let unsent = 0;
   const wsDir = join8(profile, "workspaces");
@@ -38394,7 +38455,7 @@ Per le IA:
   uninstall [--repo <dir>] [--keep-data] [--yes] [--dry-run]   toglie Foglio dalla macchina: agenti scollegati, collegamenti
                                  MCP, hook, skill e blocchi di AGENTS.md; poi profilo (archivi locali), CLI installata e PATH
                                  (--keep-data tiene il profilo). Avvisa se ci sono voci non inviate. Gli agenti si revocano dall'app.
-  setup-ai --repo <dir> | --user installa MCP, hook di Claude Code, regole di divieto, AGENTS.md e la skill \xABfoglio\xBB; --verify prova;
+  setup-ai --repo <dir> | --user installa MCP e skill per Claude Code, Codex e OpenCode, hook di Claude Code e AGENTS.md; --verify prova;
                                  --refresh rigenera solo la skill (e la sezione di Codex) dopo un aggiornamento della CLI
   reindex                        ricostruisce la ricerca dall'archivio
 
@@ -38493,6 +38554,7 @@ var OPTIONS = {
   home: { type: "string" },
   claude: { type: "boolean" },
   codex: { type: "boolean" },
+  opencode: { type: "boolean" },
   refresh: { type: "boolean" },
   verify: { type: "boolean" },
   command: { type: "string" },
