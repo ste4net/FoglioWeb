@@ -342,7 +342,7 @@ var init_version = __esm({
   "src/version.ts"() {
     "use strict";
     VERSION = (() => {
-      if (true) return "0.5.9";
+      if (true) return "0.5.10";
       try {
         const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         return pkg.version ?? "0.0.0";
@@ -22571,11 +22571,15 @@ var init_jsApi = __esm({
       }
       async listEntries(workspace) {
         const out = [];
-        for (let from = 0; ; from += PAGE) {
-          const { data, error } = await this.sb.from("entries").select(ENTRY_COLUMNS).eq("workspace_id", workspace).order("created_at", { ascending: true }).order("id", { ascending: true }).range(from, from + PAGE - 1);
+        for (let last = null; ; ) {
+          let q = this.sb.from("entries").select(ENTRY_COLUMNS).eq("workspace_id", workspace);
+          if (last) q = q.gt("id", last);
+          const { data, error } = await q.order("id", { ascending: true }).limit(PAGE);
           if (error) fail(error, "lettura voci");
-          out.push(...data);
-          if (data.length < PAGE) return out;
+          const rows = data;
+          out.push(...rows);
+          if (rows.length < PAGE) return out;
+          last = rows[rows.length - 1].id;
         }
       }
       async getEntry(id) {
@@ -22601,11 +22605,15 @@ var init_jsApi = __esm({
       }
       async listLinks(workspace) {
         const out = [];
-        for (let from = 0; ; from += PAGE) {
-          const { data, error } = await this.sb.from("entry_links").select("workspace_id, from_id, to_id, rel, target_ref, target_type").eq("workspace_id", workspace).order("id").range(from, from + PAGE - 1);
+        for (let last = null; ; ) {
+          let q = this.sb.from("entry_links").select("id, workspace_id, from_id, to_id, rel, target_ref, target_type").eq("workspace_id", workspace);
+          if (last) q = q.gt("id", last);
+          const { data, error } = await q.order("id").limit(PAGE);
           if (error) fail(error, "lettura collegamenti");
-          out.push(...data);
-          if (data.length < PAGE) return out;
+          const rows = data;
+          out.push(...rows);
+          if (rows.length < PAGE) return out;
+          last = rows[rows.length - 1].id;
         }
       }
       async replaceLinks(workspace, fromId, links2) {

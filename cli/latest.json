@@ -1,9 +1,9 @@
 {
-  "version": "0.5.9",
+  "version": "0.5.10",
   "min_supported": "0.1.0",
   "file": "foglio.mjs",
-  "sha256": "460db33ac2bc86b81b1d851c2e45b960af17ffe62a5e66863dd936690131b43e",
-  "signature": "5bFtLzfuJ2w65hA2CCuGuiOaFh55XErCUDJb+d44Ghe8Gma7wb3QaxnZBA9YLr2Yip1tpGqTfwP1UrPJB7G0AA==",
-  "released_at": "2026-11-13T10:23:50.797Z",
+  "sha256": "e104e3297d2843fceec93e233e0b843105b1d91e3c9502f241d6d7b31323a9cb",
+  "signature": "JTEygCvsMdt+i+7powR3veeegZ3eMXmPLVX20sX9wQwuQlTqAIFAKj+WMMwfXmGtVhRwBhXg3POZ54KG9EHpBQ==",
+  "released_at": "2026-11-24T10:14:31.622Z",
   "notes": "Supporto OpenCode: MCP, AGENTS.md e skill tramite setup-ai --opencode."
 }
